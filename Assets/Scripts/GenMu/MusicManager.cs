@@ -103,6 +103,10 @@ public class MusicManager : MonoBehaviour
 	private WaitForSeconds refreshInterval = new WaitForSeconds( 0.5f );
 	private bool musicStop;
 
+	private int chordIndex = 0;
+	private int noteIndexMelody = 0;
+	private int noteIndexBass = 0;
+
 	AudioClip GenerateChord( float[] frequencies, string waveformType, float attack, float decay, float sustain, float release, float modIndex, float modFrequency, string modType, string modFMAM )
 	{
 		int sampleRate = 44100;
@@ -148,7 +152,6 @@ public class MusicManager : MonoBehaviour
 		melodySource.volume = 0.02f;
 		bassSource.volume = 0.18f;
 		harmonySource.volume = 0.2f;
-
 		musicStop = true;
 		// Example: Start different music layers
 		StartCoroutine( PlayMelody() );
@@ -180,7 +183,7 @@ public class MusicManager : MonoBehaviour
 	}
 	IEnumerator PlayHarmony()
 	{
-		int chordIndex = 0;
+		chordIndex = 0;
 		float beatDuration = 60f / currentHarmonyParameters.tempo;
 		//if( !musicStop ) StopCoroutine( PlayHarmony() );
 		while( musicStop )
@@ -188,34 +191,34 @@ public class MusicManager : MonoBehaviour
 			AudioClip chordClip = GenerateChord( currentChordProgression[chordIndex], currentHarmonyParameters.waveformType, currentHarmonyParameters.attack, currentHarmonyParameters.decay, currentHarmonyParameters.sustain, currentHarmonyParameters.release, currentHarmonyParameters.modIndex, currentHarmonyParameters.modFrequency, currentHarmonyParameters.modType, currentHarmonyParameters.modFMAM );
 			harmonySource.PlayOneShot( chordClip );
 			yield return new WaitForSeconds( beatDuration * 2 );
-			chordIndex = ( chordIndex + 1 ) % chordProgression.Length;
+			chordIndex = ( chordIndex + 1 ) % currentChordProgression.Length;
 		}
 	}
 	IEnumerator PlayMelody()
 	{
-		int noteIndex = 0;
+		noteIndexMelody = 0;
 		float beatDuration = 60f / currentMelodyParameters.tempo;
 		//if( !musicStop ) StopCoroutine( PlayMelody() );
 		while( musicStop )
 		{
 			// Example: Play a melody note
-			AudioClip noteClip = GenerateTone( currentMelodyLine[noteIndex], currentMelodyParameters.waveformType, currentMelodyParameters.attack, currentMelodyParameters.decay, currentMelodyParameters.sustain, currentMelodyParameters.release, currentMelodyParameters.modIndex, currentMelodyParameters.modFrequency, currentMelodyParameters.modType, currentMelodyParameters.modFMAM );
+			AudioClip noteClip = GenerateTone( currentMelodyLine[noteIndexMelody], currentMelodyParameters.waveformType, currentMelodyParameters.attack, currentMelodyParameters.decay, currentMelodyParameters.sustain, currentMelodyParameters.release, currentMelodyParameters.modIndex, currentMelodyParameters.modFrequency, currentMelodyParameters.modType, currentMelodyParameters.modFMAM );
 			melodySource.PlayOneShot( noteClip );
 			yield return new WaitForSeconds( beatDuration );
-			noteIndex = ( noteIndex + 1 ) % currentMelodyLine.Length;
+			noteIndexMelody = ( noteIndexMelody + 1 ) % currentMelodyLine.Length;
 		}
 	}
 	IEnumerator PlayBassLine()
 	{
-		int noteIndex = 0;
+		noteIndexBass = 0;
 		float beatDuration = 60f / currentBassParameters.tempo;
 		//if( !musicStop ) StopCoroutine( PlayBassLine() );
 		while( musicStop )
 		{
-			AudioClip noteClip = GenerateTone( currentBassLine[noteIndex], currentBassParameters.waveformType, currentBassParameters.attack, currentBassParameters.decay, currentBassParameters.sustain, currentBassParameters.release, currentBassParameters.modIndex, currentBassParameters.modFrequency, currentBassParameters.modType, currentBassParameters.modFMAM );
+			AudioClip noteClip = GenerateTone( currentBassLine[noteIndexBass], currentBassParameters.waveformType, currentBassParameters.attack, currentBassParameters.decay, currentBassParameters.sustain, currentBassParameters.release, currentBassParameters.modIndex, currentBassParameters.modFrequency, currentBassParameters.modType, currentBassParameters.modFMAM );
 			bassSource.PlayOneShot( noteClip );
 			yield return new WaitForSeconds( beatDuration * 2 );
-			noteIndex = ( noteIndex + 1 ) % currentBassLine.Length;
+			noteIndexBass = ( noteIndexBass + 1 ) % currentBassLine.Length;
 		}
 	}
 	AudioClip GenerateTone( float frequency, string waveformType, float attack, float decay, float sustain, float release, float modIndex = 0, float modFrequency = 0, string modType = "none", string modFMAM = "none" )
@@ -247,7 +250,7 @@ public class MusicManager : MonoBehaviour
 			request.uploadHandler = new UploadHandlerRaw( bodyRaw );
 			request.downloadHandler = new DownloadHandlerBuffer();
 			request.SetRequestHeader( "Content-Type", "application/json" );
-			request.SetRequestHeader( "Authorization", "Bearer " );
+			request.SetRequestHeader( "Authorization", "Bearer " + ApiKeys.ApiKey );
 			yield return request.SendWebRequest();
 
 			if( request.result == UnityWebRequest.Result.Success )
@@ -261,8 +264,6 @@ public class MusicManager : MonoBehaviour
 					{
 						string replyText = response.choices[0].text;
 						string trimmedReplyText = response.choices[0].text.Trim();
-						Debug.Log( replyText );
-						Debug.Log( trimmedReplyText );
 						currentMusicData = JsonUtility.FromJson<MusicData>( trimmedReplyText );
 						float[][] createdChordProgression = new float[currentMusicData.amountOfChords][];
 						for( int i = 0; i < currentMusicData.amountOfChords; i++)
@@ -287,10 +288,12 @@ public class MusicManager : MonoBehaviour
 							}
 							
 						}
-						Debug.Log( createdChordProgression );
 						currentChordProgression = createdChordProgression;
+						chordIndex = 0;
 						currentMelodyLine = currentMusicData.melodyLine;
+						noteIndexMelody = 0;
 						currentBassLine = currentMusicData.bassLine;
+						noteIndexBass = 0;
 						currentHarmonyParameters = currentMusicData.harmonyParameters;
 						currentMelodyParameters = currentMusicData.melodyParameters;
 						currentBassParameters = currentMusicData.bassParameters;

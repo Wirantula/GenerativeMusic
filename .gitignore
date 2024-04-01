@@ -61,3 +61,7 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+*.ApiKeys.cs
+Assets/Scripts/GenMu/ApiKeys.cs
+
+Assets/Scripts/GenMu/ApiKeys.cs.meta
