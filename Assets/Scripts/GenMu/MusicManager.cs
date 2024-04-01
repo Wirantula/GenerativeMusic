@@ -247,7 +247,7 @@ public class MusicManager : MonoBehaviour
 			request.uploadHandler = new UploadHandlerRaw( bodyRaw );
 			request.downloadHandler = new DownloadHandlerBuffer();
 			request.SetRequestHeader( "Content-Type", "application/json" );
-			request.SetRequestHeader( "Authorization", "Bearer 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" );
+			request.SetRequestHeader( "Authorization", "Bearer " );
 			yield return request.SendWebRequest();
 
 			if( request.result == UnityWebRequest.Result.Success )
