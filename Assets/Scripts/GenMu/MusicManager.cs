@@ -1,10 +1,17 @@
 using UnityEngine;
 using System.Collections;
+using System.Text;
+using System;
+using UnityEngine.Networking;
+using System.Collections.Generic;
+using System.Drawing;
 
 public class MusicManager : MonoBehaviour
 {
 	public GameObject player;
-	public PlayerMovementTracker playerMovementTracker;
+	public MusicData currentMusicData = new MusicData();
+	private AudioUtils audioUtils = new AudioUtils();
+	//public PlayerMovementTracker playerMovementTracker;
 	private AudioSource melodySource, harmonySource, bassSource;
 	private int currentChordIndex = 0;
 
@@ -84,6 +91,7 @@ public class MusicManager : MonoBehaviour
 		public string modFMAM;
 	}
 
+	public MusicParameters baseMusicParams;
 	public MusicParameters currentHarmonyParameters;
 	public MusicParameters currentMelodyParameters;
 	public MusicParameters currentBassParameters;
@@ -109,7 +117,7 @@ public class MusicManager : MonoBehaviour
 			for( int i = 0; i < sampleLength; i++ )
 			{
 				float t = i / ( float )sampleRate;
-				samples[note][i] = AudioUtils.GenerateWaveform( t, frequencies[note], waveformType, modIndex, modFrequency, modType, modFMAM ) * AudioUtils.ADSREnvelope( i, sampleRate, attack, decay, sustain, release, sampleLength );
+				samples[note][i] = audioUtils.GenerateWaveform( t, frequencies[note], waveformType, modIndex, modFrequency, modType, modFMAM ) * audioUtils.ADSREnvelope( i, sampleRate, attack, decay, sustain, release, sampleLength );
 			}
 		}
 
@@ -137,158 +145,39 @@ public class MusicManager : MonoBehaviour
 		melodySource = CreateAudioSource( "Melody" );
 		harmonySource = CreateAudioSource( "Harmony" );
 		bassSource = CreateAudioSource( "Bass" );
-		melodySource.volume = 0.25f;
-		bassSource.volume = 0.05f;
-		harmonySource.volume = 0.3f;
+		melodySource.volume = 0.02f;
+		bassSource.volume = 0.18f;
+		harmonySource.volume = 0.2f;
 
 		musicStop = true;
 		// Example: Start different music layers
 		StartCoroutine( PlayMelody() );
 		StartCoroutine( PlayHarmony() );
 		StartCoroutine( PlayBassLine() );
-		StartCoroutine( AdjustMusicDynamically() );
 	}
 
-	void SetMusicTheme( string theme )
+	public void SetMusicTheme( string theme )
 	{
-		if( theme != currentTheme && !theme.StartsWith( "Region" ) )
-		{
-			lastMelodyParameters = currentMelodyParameters;
-			lastHarmonyParameters = currentHarmonyParameters;
-			lastBassParameters = currentBassParameters;
-		}
-		switch( theme )
-		{
-			case "FastForward":
-				currentChordProgression = fastForwardChordProgression;
-				currentMelodyLine = ffMelodyLine;
-				currentBassLine = ffBassLine;
-				currentMelodyParameters = new MusicParameters { waveformType = "sine", attack = 0.01f, decay = 0.05f, sustain = 0.8f, release = 0.1f, tempo = ( lastMelodyParameters.tempo * playerMovementTracker.Speed ) / 4f, modIndex = ( ( lastMelodyParameters.modIndex + 5 ) * playerMovementTracker.Speed ), modFrequency = ( ( lastMelodyParameters.modFrequency + 50 ) * playerMovementTracker.Speed ) / 1.5f, modType = "sawtooth", modFMAM = "AM" };
-				break;
-			case "SlowForward":
-				currentMelodyParameters = new MusicParameters { waveformType = "sine", attack = 0.05f, decay = 0.2f, sustain = 0.7f, release = 0.2f, tempo = 90 };
-				break;
-			// Add more themes as necessary
-			case "RegionA":
-				currentMelodyParameters.modType = "square";
-				currentChordProgression = new float[][] {
-				new float[] { 220.00f, 261.63f, 329.63f }, // A Minor
-				new float[] { 349.23f, 440.00f, 523.25f }, // F Major
-				new float[] { 261.63f, 329.63f, 392.00f }, // C Major
-				new float[] { 392.00f, 493.88f, 587.33f }  // G Major
-				};
-
-				break;
-			case "RegionB":
-				currentMelodyParameters.modType = "sine";
-				currentChordProgression = new float[][] {
-				new float[] { 261.63f, 329.63f, 392.00f }, // C Major
-				new float[] { 220.00f, 261.63f, 329.63f }, // A Minor
-				new float[] { 349.23f, 440.00f, 523.25f }, // F Major
-				new float[] { 392.00f, 493.88f, 587.33f }  // G Major
-				};
-
-				currentMelodyLine = new float[] {
-				392.00f, // G
-				440.00f, // A
-				392.00f, // G
-				349.23f, // F
-				392.00f, // G
-				261.63f, // C (Lower Octave)
-				329.63f, // E
-				392.00f  // G
-				};
-				break;
-			case "RegionC":
-				currentMelodyParameters.modType = "sawtooth";
-				currentMelodyParameters.modFrequency /= 2;
-				currentMelodyLine = new float[] {
-				440.00f, // A
-				392.00f, // G
-				440.00f, // A
-				493.88f, // B
-				523.25f, // C (Higher Octave)
-				493.88f, // B
-				440.00f, // A
-				392.00f  // G
-				};
-				break;
-			default:
-				currentMelodyParameters = new MusicParameters { waveformType = "sine", attack = 0.01f, decay = 0.1f, sustain = 0.7f, release = 0.2f, tempo = 120 };
-				break;
-		}
-		if( !theme.StartsWith( "Region" ) )
-		{
-			currentTheme = theme;
-		}
+		StartCoroutine( GenerateContent( "I want you to make a single MusicData class in JSON format based on this class: " + JsonUtility.ToJson( baseMusicData ) + " .The MusicParameters are based on this struct:" + JsonUtility.ToJson(baseMusicParams) + " and are the data necassary for this static class:  " + JsonUtility.ToJson( audioUtils ) +
+					"The MusicData you're creating should fit the theme: " + theme + ". amoundOfChords is an int with a value between 2-5 and should correspond with how many chord[] are filled, chord1-chord5 are each a float[], inside of it should be 3 floats which are note frequencies, representing chords. " +
+					"melodyLine should be a float[] filled with floats which are note frequencies, together this should form a melody of notes. bassLine should be a float[] filled with floats which are note frequencies, together this should form a baseLine of notes." +
+					"waveformType and modType both are strings representing a waveformat, possible strings here are: sine, square, sawtooth, triangle. modFMAM represents which type of modulation to apply, the options being: FM or AM. " +
+					"Try to make all values in such a way that it would create music fitting the theme: " + theme + ", so make corresponding chords, melodies and basslines as well as making sure that all modulations aren't too extreme and make the music sound pleasent " +
+					"be sure to only respond with the JSON and not have anything else in the repsonse message. " +
+					"Dont forget you have to close off the response with the right closing quotation mark. " +
+					"Make sure there are no syntax errors in the JSON. An example of how a correct response could look in JSON format is: " +
+					"[\"amountOfChords\": 4,\"chord1\": [261.63, 329.63, 392.00], \"chord2\": [349.23, 440.00, 523.25], \"chord3\": [392.00, 493.88, 587.33], \"chord4\": [220.00, 261.63, 329.63],\"melodyLine\": [329.63, 392.0, 392.0, 440.0, 493.88, 493.88, 523.25, 587.33],\"bassLine\": [164.81, 174.61, 196.0, 174.61, 196.0, 174.61, 196.0, 130.81],\"harmonyParameters\": {\"waveformType\": \"sine\",\"attack\": 0.3,\"decay\": 0.2,\"sustain\": 0.7,\"release\": 0.4,\"tempo\": 110.0,\"modIndex\": 1.5,\"modFrequency\": 2.0,\"modType\": \"sawtooth\",\"modFMAM\": \"FM\"},\"melodyParameters\": {\"waveformType\": \"sawtooth\",\"attack\": 0.2,\"decay\": 0.1,\"sustain\": 0.5,\"release\": 0.3,\"tempo\": 110.0,\"modIndex\": 12.0,\"modFrequency\": 23.0,\"modType\": \"sine\",\"modFMAM\":\"AM\"},\"bassParameters\": {\"waveformType\": \"sawtooth\",\"attack\": 0.2,\"decay\": 0.1,\"sustain\": 0.5,\"release\": 0.3,\"tempo\": 110.0,\"modIndex\": 12.0,\"modFrequency\": 23.0,\"modType\": \"sine\",\"modFMAM\":\"AM\"}]"
+					 + " This however is only an example, actual values should not be the same as the example and you should come up with values that would sound good together and fit the theme: " + theme));
 	}
-
-
-
-	IEnumerator AdjustMusicDynamically()
-	{
-		while( true )
-		{
-			yield return refreshInterval; // Adjust frequency of checks as needed
-			if( playerMovementTracker.Speed >= 3.5f ) // Threshold for "fast" movement
-			{
-				if( playerMovementTracker.IsMovingForward )
-				{
-					// Trigger Fast Movement & Forward Direction theme
-					SetMusicTheme( "FastForward" );
-				}
-				else
-				{
-					// Trigger Fast Movement & Backward Direction theme (if applicable)
-					SetMusicTheme( "FastBackward" );
-				}
-			}
-			else
-			{
-				if( playerMovementTracker.IsMovingForward )
-				{
-					// Trigger Slow Movement & Forward Direction theme
-					SetMusicTheme( "SlowForward" );
-				}
-				else
-				{
-					// Trigger Slow Movement & Backward Direction theme (if applicable)
-					SetMusicTheme( "SlowBackward" );
-				}
-			}
-		}
-	}
-
 	private void Update()
 	{
-		UpdateMusicBasedOnLocation();
 	}
-
-	void UpdateMusicBasedOnLocation()
-	{
-		Vector3 playerPosition = playerMovementTracker.CurrentPosition;
-		// Example conditions for different regions - these should be based on your game's world design
-		if( playerPosition.x < 30 && playerPosition.x > -30 )
-		{
-			SetMusicTheme( "RegionA" );
-		}
-		else if( playerPosition.x >= 30 && playerPosition.x < 200 )
-		{
-			SetMusicTheme( "RegionB" );
-		}
-		else if( playerPosition.x <= -30 )
-		{
-			SetMusicTheme( "RegionC" );
-		}
-	}
-
 	AudioSource CreateAudioSource( string name )
 	{
 		var newSource = new GameObject( name ).AddComponent<AudioSource>();
 		newSource.transform.parent = transform;
 		return newSource;
 	}
-
 	IEnumerator PlayHarmony()
 	{
 		int chordIndex = 0;
@@ -302,7 +191,6 @@ public class MusicManager : MonoBehaviour
 			chordIndex = ( chordIndex + 1 ) % chordProgression.Length;
 		}
 	}
-
 	IEnumerator PlayMelody()
 	{
 		int noteIndex = 0;
@@ -317,7 +205,6 @@ public class MusicManager : MonoBehaviour
 			noteIndex = ( noteIndex + 1 ) % currentMelodyLine.Length;
 		}
 	}
-
 	IEnumerator PlayBassLine()
 	{
 		int noteIndex = 0;
@@ -331,23 +218,128 @@ public class MusicManager : MonoBehaviour
 			noteIndex = ( noteIndex + 1 ) % currentBassLine.Length;
 		}
 	}
-
 	AudioClip GenerateTone( float frequency, string waveformType, float attack, float decay, float sustain, float release, float modIndex = 0, float modFrequency = 0, string modType = "none", string modFMAM = "none" )
 	{
 		int sampleRate = 44100;
 		int sampleLength = sampleRate; // 1 second of audio
 		float[] samples = new float[sampleLength];
-
 		for( int i = 0; i < sampleLength; i++ )
 		{
 			float t = i / ( float )sampleRate;
-			float waveformSample = AudioUtils.GenerateWaveform( t, frequency, waveformType, modIndex, modFrequency, modType, modFMAM );
-			float envelope = AudioUtils.ADSREnvelope( i, sampleRate, attack, decay, sustain, release, sampleLength );
+			float waveformSample = audioUtils.GenerateWaveform( t, frequency, waveformType, modIndex, modFrequency, modType, modFMAM );
+			float envelope = audioUtils.ADSREnvelope( i, sampleRate, attack, decay, sustain, release, sampleLength );
 			samples[i] = waveformSample * envelope;
 		}
-
 		AudioClip clip = AudioClip.Create( "Tone", sampleLength, 1, sampleRate, false );
 		clip.SetData( samples, 0 );
 		return clip;
 	}
+
+	#region AIGenerator
+	private MusicData baseMusicData = new MusicData();
+	IEnumerator GenerateContent( string promptI )
+	{
+		OpenAIrequestBody requestBody = new OpenAIrequestBody { prompt = promptI };
+		string json = JsonUtility.ToJson( requestBody );
+		byte[] bodyRaw = Encoding.UTF8.GetBytes( json );
+		using( UnityWebRequest request = new UnityWebRequest( "https://api.openai.com/v1/completions", "POST" ) )
+		{
+			request.uploadHandler = new UploadHandlerRaw( bodyRaw );
+			request.downloadHandler = new DownloadHandlerBuffer();
+			request.SetRequestHeader( "Content-Type", "application/json" );
+			request.SetRequestHeader( "Authorization", "Bearer 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" );
+			yield return request.SendWebRequest();
+
+			if( request.result == UnityWebRequest.Result.Success )
+			{
+				try
+				{
+					string jsonResponse = request.downloadHandler.text;
+					OpenAIResponse response = JsonUtility.FromJson<OpenAIResponse>( jsonResponse );
+
+					if( response.choices != null && response.choices.Length > 0 )
+					{
+						string replyText = response.choices[0].text;
+						string trimmedReplyText = response.choices[0].text.Trim();
+						Debug.Log( replyText );
+						Debug.Log( trimmedReplyText );
+						currentMusicData = JsonUtility.FromJson<MusicData>( trimmedReplyText );
+						float[][] createdChordProgression = new float[currentMusicData.amountOfChords][];
+						for( int i = 0; i < currentMusicData.amountOfChords; i++)
+						{
+							switch(i)
+							{
+								case 0:
+									createdChordProgression[i] = currentMusicData.chord1;
+									break;
+								case 1:
+									createdChordProgression[i] = currentMusicData.chord2;
+									break;
+								case 2:
+									createdChordProgression[i] = currentMusicData.chord3;
+									break;
+								case 3:
+									createdChordProgression[i] = currentMusicData.chord4;
+									break;
+								case 4:
+									createdChordProgression[i] = currentMusicData.chord5;
+									break;
+							}
+							
+						}
+						Debug.Log( createdChordProgression );
+						currentChordProgression = createdChordProgression;
+						currentMelodyLine = currentMusicData.melodyLine;
+						currentBassLine = currentMusicData.bassLine;
+						currentHarmonyParameters = currentMusicData.harmonyParameters;
+						currentMelodyParameters = currentMusicData.melodyParameters;
+						currentBassParameters = currentMusicData.bassParameters;
+					}
+					else
+					{
+						Debug.LogWarning( "no choices available in repsonse." );
+					}
+				}
+				catch( Exception ex )
+				{
+					Debug.LogError( $"Error parsing JSON: {ex.Message}" );
+					Debug.Log( "RETRYING NEW GPT RESPONSE..." );
+					StartCoroutine( GenerateContent( promptI));
+				}
+			}
+			else
+			{
+				Debug.LogError( $"Error generating content: {request.error}, Response Code: {request.responseCode}" );
+			}
+		}
+	}
+
+	#endregion
+}
+
+
+[Serializable]
+public class OpenAIrequestBody
+{
+	public string model = "gpt-3.5-turbo-instruct";
+	public string prompt;
+	public int max_tokens = 500;
+};
+
+[Serializable]
+public class OpenAIResponse
+{
+	public Choice[] choices;
+}
+
+[Serializable]
+public class Choice
+{
+	public string text;
+}
+
+[Serializable]
+public class MusicDataList
+{
+	public MusicData[] musicData;
 }

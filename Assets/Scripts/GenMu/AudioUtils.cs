@@ -1,8 +1,8 @@
 using UnityEngine;
 
-public static class AudioUtils
+public class AudioUtils
 {
-	public static float GenerateWaveform( float t, float frequency, string waveformType, float modIndex = 0, float modFrequency = 0, string modType = "none", string modFMAM = "none" )
+	public float GenerateWaveform( float t, float frequency, string waveformType, float modIndex = 0, float modFrequency = 0, string modType = "none", string modFMAM = "none" )
 	{
 		float carrier = waveformSelector( t, frequency, waveformType );
 		float modulator = waveformSelector( t, modFrequency, modType );
@@ -18,7 +18,7 @@ public static class AudioUtils
 		}
 	}
 
-	private static float waveformSelector( float t, float frequency, string waveformType )
+	private float waveformSelector( float t, float frequency, string waveformType )
 	{
 		switch( waveformType )
 		{
@@ -35,7 +35,7 @@ public static class AudioUtils
 		}
 	}
 
-	public static float ADSREnvelope( int sampleIndex, int sampleRate, float attack, float decay, float sustain, float release, int totalSamples )
+	public float ADSREnvelope( int sampleIndex, int sampleRate, float attack, float decay, float sustain, float release, int totalSamples )
 	{
 		float time = sampleIndex / ( float )sampleRate;
 		float attackTime = attack * sampleRate;
